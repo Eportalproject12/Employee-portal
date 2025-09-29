@@ -1,0 +1,46 @@
+CREATE TABLE payslips (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  employee_id INT NOT NULL,
+  period_start DATE NOT NULL,
+  period_end DATE NOT NULL,
+  gross_amount DECIMAL(12,2) NOT NULL,
+  net_amount DECIMAL(12,2) NOT NULL,
+  tax_amount DECIMAL(12,2) NOT NULL,
+  file_url TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_ps_emp FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE holidays (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(150) NOT NULL,
+  holiday_date DATE NOT NULL,
+  is_optional BOOLEAN NOT NULL DEFAULT FALSE,
+  region VARCHAR(100)
+) ENGINE=InnoDB;
+
+CREATE TABLE grievances (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  employee_id INT NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  description TEXT NOT NULL,
+  status ENUM('OPEN','IN_REVIEW','RESOLVED','DISMISSED') NOT NULL DEFAULT 'OPEN',
+  handler_id INT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  resolved_at TIMESTAMP NULL,
+  CONSTRAINT fk_gr_emp     FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE,
+  CONSTRAINT fk_gr_handler FOREIGN KEY (handler_id) REFERENCES employees(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE resignations (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  employee_id INT NOT NULL,
+  notice_date DATE NOT NULL DEFAULT (CURRENT_DATE),
+  last_working_day DATE NOT NULL,
+  reason TEXT,
+  status ENUM('SUBMITTED','ACCEPTED','RETRACTED') NOT NULL DEFAULT 'SUBMITTED',
+  approved_by INT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_rsn_emp  FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE,
+  CONSTRAINT fk_rsn_appr FOREIGN KEY (approved_by) REFERENCES employees(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
