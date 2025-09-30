@@ -1,7 +1,3 @@
--- ===========================
--- V4__seed_data.sql (MySQL 8+, no warnings)
--- ===========================
-
 /* ---------- Roles ---------- */
 INSERT INTO roles (name, description)
 VALUES
@@ -33,7 +29,7 @@ ON DUPLICATE KEY UPDATE
   carry_forward          = new.carry_forward,
   max_balance            = new.max_balance;
 
-/* ---------- One example holiday (adjust as you like) ---------- */
+/* ---------- One example holiday ---------- */
 INSERT INTO holidays (name, holiday_date, is_optional, region)
 VALUES ('New Year''s Day', DATE(CONCAT(YEAR(CURDATE()),'-01-01')), FALSE, 'Global')
 AS new
@@ -42,12 +38,12 @@ ON DUPLICATE KEY UPDATE region = new.region;
 /* ---------- Seed admin & manager employees ---------- */
 INSERT INTO employees (first_name, last_name, email, department_id)
 VALUES
-  ('System','Admin','admin@example.com',   (SELECT id FROM departments WHERE name='Engineering')),
-  ('Ava','Manager','manager@example.com',  (SELECT id FROM departments WHERE name='Human Resources'))
+  ('System','Admin','admin@example.com',  (SELECT id FROM departments WHERE name='Engineering')),
+  ('Ava','Manager','manager@example.com', (SELECT id FROM departments WHERE name='Human Resources'))
 AS new
 ON DUPLICATE KEY UPDATE department_id = new.department_id;
 
-/* ---------- Users for admin & manager (DEV-ONLY hashes) ---------- */
+/* ---------- Users for admin & manager (DEV hashes) ---------- */
 /* admin123  => $2a$10$QH8nS6q6r9eG7K2mHq1nUeS9b6qvT3c9o6yQdN9m6Sx0B9F4y8y7a */
 /* manager123=> $2a$10$QH8nS6q6r9eG7K2mHq1nUeS9b6qvT3c9o6yQdN9m6Sx0B9F4y8y7b  */
 INSERT INTO users (username, email, password_hash, role_id, employee_id, is_active)
@@ -64,20 +60,25 @@ VALUES
      TRUE)
 AS new
 ON DUPLICATE KEY UPDATE
-  role_id      = new.role_id,
-  password_hash= new.password_hash,
-  employee_id  = new.employee_id,
-  is_active    = new.is_active;
+  role_id       = new.role_id,
+  password_hash = new.password_hash,
+  employee_id   = new.employee_id,
+  is_active     = new.is_active;
 
 /* ---------- Initial leave balances for admin & manager ---------- */
-/* Use IGNORE to stay idempotent and avoid warnings */
+/* Avoid VALUES() by doing INSERT IGNORE + UPDATE */
 INSERT IGNORE INTO leave_balances (employee_id, leave_type_id, balance_days)
 SELECT e.id, lt.id,
        CASE lt.name WHEN 'Annual' THEN 15 WHEN 'Sick' THEN 8 ELSE 0 END
 FROM employees e
-JOIN users u ON u.employee_id = e.id
+JOIN users u      ON u.employee_id = e.id
 JOIN leave_types lt ON lt.name IN ('Annual','Sick')
 WHERE u.username IN ('admin','manager');
+
+UPDATE leave_balances lb
+JOIN users u        ON u.employee_id = lb.employee_id AND u.username IN ('admin','manager')
+JOIN leave_types lt ON lt.id = lb.leave_type_id
+SET lb.balance_days = CASE lt.name WHEN 'Annual' THEN 15 WHEN 'Sick' THEN 8 ELSE 0 END;
 
 /* ---------- Bulk seed ~200 employees + matching users ---------- */
 
@@ -87,20 +88,20 @@ SET @dep_hr  = (SELECT id FROM departments WHERE name='Human Resources' LIMIT 1)
 SET @dep_fin = (SELECT id FROM departments WHERE name='Finance' LIMIT 1);
 SET @dep_ops = (SELECT id FROM departments WHERE name='Operations' LIMIT 1);
 
-/* Generate 200 numbers (1..200) and insert employees if their email doesn't exist yet */
+/* Insert 200 employees if not already present (no warnings) */
 INSERT INTO employees (first_name, last_name, email, department_id)
 SELECT
-  CONCAT('Emp', n)                 AS first_name,
-  CONCAT('User', n)                AS last_name,
-  CONCAT('emp', n, '@example.com') AS email,
+  CONCAT('Emp', n)                  AS first_name,
+  CONCAT('User', n)                 AS last_name,
+  CONCAT('emp', n, '@example.com')  AS email,
   CASE n % 4
     WHEN 0 THEN @dep_eng
     WHEN 1 THEN @dep_hr
     WHEN 2 THEN @dep_fin
     ELSE @dep_ops
-  END AS department_id
+  END                               AS department_id
 FROM (
-  SELECT (ones.n + tens.n*10 + 1) AS n
+  SELECT ones.n + tens.n*10 + 1 AS n
   FROM
     (SELECT 0 n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
      UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) AS ones
@@ -123,3 +124,5 @@ SELECT
 FROM employees e
 LEFT JOIN users u ON u.employee_id = e.id
 WHERE u.id IS NULL;
+
+
