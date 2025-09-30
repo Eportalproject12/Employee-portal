@@ -80,7 +80,7 @@ JOIN users u        ON u.employee_id = lb.employee_id AND u.username IN ('admin'
 JOIN leave_types lt ON lt.id = lb.leave_type_id
 SET lb.balance_days = CASE lt.name WHEN 'Annual' THEN 15 WHEN 'Sick' THEN 8 ELSE 0 END;
 
-/* ---------- Bulk seed ~200 employees + matching users ---------- */
+/* ---------- Bulk seed ~100 employees + matching users ---------- */
 
 /* Cache department ids */
 SET @dep_eng = (SELECT id FROM departments WHERE name='Engineering' LIMIT 1);
@@ -88,7 +88,7 @@ SET @dep_hr  = (SELECT id FROM departments WHERE name='Human Resources' LIMIT 1)
 SET @dep_fin = (SELECT id FROM departments WHERE name='Finance' LIMIT 1);
 SET @dep_ops = (SELECT id FROM departments WHERE name='Operations' LIMIT 1);
 
-/* Insert 200 employees if not already present (no warnings) */
+/* Insert 100 employees if not already present (no warnings) */
 INSERT INTO employees (first_name, last_name, email, department_id)
 SELECT
   CONCAT('Emp', n)                  AS first_name,
